@@ -127,51 +127,103 @@ extension Set {
 }
 
 struct GraphView: View {
-    @Binding var graph: Graph
-    @FocusState private var focusedElement: FocusedElement?
-    @State private var selection = Set<Node.ID>()
-    @State private var modifiers: EventModifiers = []
+    @Binding var schema: Schema
+//    @FocusState private var focusedElement: FocusedElement?
+//    @State private var selection = Set<Node.ID>()
+//    @State private var modifiers: EventModifiers = []
+
+    struct LinkDrag {
+        var fromColumnID: UUID
+        var startPoint: CGPoint
+        var currentPoint: CGPoint
+    }
+
+    @State private var linkDrag: LinkDrag? = nil
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
                 .contentShape(.rect)
                 .onTapGesture {
-                    focusedElement = nil
-                    selection = []
+//                    focusedElement = nil
+//                    selection = []
                 }
-            ForEach(graph.edges) { edge in
-                let result = graph.resolve(edge: edge)
-                EdgeView(edge: result)
-                    .focusable()
-                    .focused($focusedElement, equals: .edge(edge.id))
-            }
-            ForEach($graph.nodes) { $node in
-                NodeView(node: node, isSelected: selection[contains: node.id])
-                    .offset(x: node.frame.minX, y: node.frame.minY)
-                    .modifier(DragModifier(location: $node.frame.origin))
-                    .focused($focusedElement, equals: .node(node.id))
-                    .modifier(ResizeModifier(enabled: selection[contains: node.id], frame: $node.frame))
-                    .onTapGesture {
-                        if !modifiers.contains(.shift) {
-                            selection.removeAll()
-                        }
+            // TODO: Edges
 
-                        selection.insert(node.id)
+            ForEach($schema.tables) { $table in
+                TableGraphView(
+                    table: $table,
+                    onBeginLinkDrag: { column, startPoint in
+                        linkDrag = LinkDrag(
+                            fromColumnID: column.id,
+                            startPoint: startPoint,
+                            currentPoint: startPoint
+                        )
+                    },
+                    onUpdateLinkDrag: { point in
+                        linkDrag?.currentPoint = point
+                    },
+                    onEndLinkDrag: { endPoint in
+                        guard let drag = linkDrag else { return }
+                        linkDrag = nil
+
+                        // Hit-test: which column did we drop on?
+//                        if let (targetID, _) = columnFrames.first(where: { _, frame in
+//                            frame.contains(endPoint)
+//                        }) {
+//                            debugPrint("Create relation from: \(drag.fromColumnID), to: \(targetID)")
+////                            createRelation(from: drag.fromColumnID, to: targetID)
+//                        }
                     }
+                )
+                .offset(x: table.position.minX, y: table.position.minY)
+                .modifier(DragModifier(location: $table.position.origin))
+                //                    .offset(x: $table.position.minX, y: $table.position.minY)
             }
+
+            if let drag = linkDrag {
+                Path { path in
+                    path.move(to: drag.startPoint)
+                    path.addLine(to: drag.currentPoint)
+                }
+                .stroke(.blue, lineWidth: 2)
+            }
+//            ForEach(graph.edges) { edge in
+//                let result = graph.resolve(edge: edge)
+//                EdgeView(edge: result)
+//                    .focusable()
+//                    .focused($focusedElement, equals: .edge(edge.id))
+//            }
+//            ForEach($schema.tables) { $table in
+//                TableGraphView(table: table)
+//                    .modifier(DragModifier(location: $table.position.origin))
+
+//                NodeView(node: node, isSelected: selection[contains: node.id])
+//                    .offset(x: node.frame.minX, y: node.frame.minY)
+//                    .modifier(DragModifier(location: $node.frame.origin))
+//                    .focused($focusedElement, equals: .node(node.id))
+//                    .modifier(ResizeModifier(enabled: selection[contains: node.id], frame: $node.frame))
+//                    .onTapGesture {
+//                        if !modifiers.contains(.shift) {
+//                            selection.removeAll()
+//                        }
+//
+//                        selection.insert(node.id)
+//                    }
+//            }
         }
-        .overlay { Text("\(focusedElement)") }
+        .coordinateSpace(.named("graph"))
+//        .overlay { Text("\(focusedElement)") }
         .onModifierKeysChanged { old, new in
-            self.modifiers = new
+//            self.modifiers = new
         }
-        .onChange(of: focusedElement) { _, newValue in
-            guard case let .node(id) = newValue else { return }
-            if !modifiers.contains(.shift) {
-                selection.removeAll()
-            }
-            selection.insert(id)
-        }
+//        .onChange(of: focusedElement) { _, newValue in
+//            guard case let .node(id) = newValue else { return }
+//            if !modifiers.contains(.shift) {
+//                selection.removeAll()
+//            }
+//            selection.insert(id)
+//        }
     }
 }
 
@@ -189,9 +241,9 @@ var exampleGraph: Graph {
 }
 
 struct ContentView: View {
-    @State var graph = exampleGraph
+    @State var graph = exampleSchema
     var body: some View {
-        GraphView(graph: $graph)
+        GraphView(schema: $graph)
             .padding()
     }
 }

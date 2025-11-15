@@ -353,11 +353,12 @@ struct Index: Identifiable {
 
 struct Table: Identifiable {
     var id: UUID = UUID()
+
     var name: String
     var color: Color = .white
     var schema: String? = nil
     var columns: [Column] = []
-    var position: CGPoint = .zero
+    var position: CGRect = .zero
     var isCollapsed: Bool = false
     var comment: String = ""
     var primaryKey: [Column.ID] = []
