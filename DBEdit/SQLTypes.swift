@@ -255,20 +255,36 @@ extension PGType {
     }
 }
 
-struct Column: Identifiable {
-    var id: UUID = UUID()
+class Column: Identifiable {
+    var id: UUID
     var name: String
     var type: PGType
-    var isPrimaryKey: Bool = false
-    var isNullable: Bool = false
-    var isUnique: Bool = false
-    var defaultValue: String? = nil
+    var isPrimaryKey: Bool
+    var isNullable: Bool
+    var isUnique: Bool
+    var defaultValue: String?
+
+    init(id: UUID = UUID(), name: String, type: PGType, isPrimaryKey: Bool = false, isNullable: Bool = false, isUnique: Bool = false, defaultValue: String? = nil) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.isPrimaryKey = isPrimaryKey
+        self.isNullable = isNullable
+        self.isUnique = isUnique
+        self.defaultValue = defaultValue
+    }
 
     var icon: String {
         if isPrimaryKey {
             return "key.horizontal.fill"
         }
         return type.icon
+    }
+}
+
+extension Array where Element : Column {
+    subscript(id id: Column.ID) -> Column? {
+        return first(where: { $0.id == id })
     }
 }
 
@@ -357,7 +373,7 @@ struct Table: Identifiable {
     var name: String
     var color: Color = .white
     var schema: String? = nil
-    var columns: [Column] = []
+    var columns: Array<Column> = []
     var position: CGRect = .zero
     var isCollapsed: Bool = false
     var comment: String = ""
@@ -380,7 +396,21 @@ struct EnumType: Identifiable {
 struct Schema {
     var name: String
     var tables: [Table] = []
-    var Enums: [EnumType] = []
+    var columnLocation: [UUID: CGRect] = [:]
+    var enums: [EnumType] = []
+
+    func allEdges() -> [Edge] {
+        var edges: [Edge] = []
+        for table in tables {
+            for fk in table.foreignKeys {
+                if let fromColumnID = fk.columns.first,
+                   let toColumnID   = fk.referencesColumns.first {
+                    edges.append(.init(source: fromColumnID, destination: toColumnID))
+                }
+            }
+        }
+        return edges
+    }
 }
 
 var exampleSchema: Schema {
@@ -412,10 +442,6 @@ var exampleSchema: Schema {
             .init(name: "updated_at", type: .timestamptz, defaultValue: "NOW()")
         ]
     ))
-
-    sc.tables[1].foreignKeys = [
-        .init(columns: [sc.tables[1].columns[1].id], referencesTable: sc.tables[0].id, referencesColumns: [sc.tables[0].columns[0].id])
-    ]
 
     return sc
 }

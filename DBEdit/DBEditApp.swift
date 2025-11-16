@@ -10,8 +10,10 @@ import SwiftUI
 @main
 struct DBEditApp: App {
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        DocumentGroup(newDocument: exampleSchemaDocument) { file in
+            MainContentView(document: file.document)
         }
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact)
     }
 }
